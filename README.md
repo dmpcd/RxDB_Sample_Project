@@ -3,7 +3,7 @@
 This project is a Node.js app that demonstrates how to use RxDB for in-memory data storage and querying, with handlers for both simulated database and file-based data. It’s modular, uses schemas for structure, and is ready for further extension or integration.
 ## Features
 
-- **AbstractRefdataHandler**: Base class providing CRUD operations similar to your LokiJS implementation
+- **AbstractRefdataHandler**: Base class providing CRUD operations similar to LokiJS implementation
 - **DBHandler**: Loads data from external sources (simulating MongoDB) into RxDB collections
 - **FileHandler**: Loads data from JSON files into RxDB collections
 - **Schema Management**: Proper schema definitions for data consistency
