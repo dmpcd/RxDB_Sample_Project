@@ -1,0 +1,31 @@
+{
+  "users": [
+    {
+      "idx": "user_file_1",
+      "username": "file_user1",
+      "email": "fileuser1@example.com",
+      "role": "admin",
+      "active": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "idx": "user_file_2",
+      "username": "file_user2",
+      "email": "fileuser2@example.com",
+      "role": "user",
+      "active": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "products": [
+    {
+      "idx": "product_file_1",
+      "name": "File Product 1",
+      "price": 199.99,
+      "category": "test_category",
+      "in_stock": true,
+      "created_at": "2025-01-01T00:00:00.000Z"
+    }
+  ]
+}
+

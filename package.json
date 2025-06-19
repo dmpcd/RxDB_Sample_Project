@@ -1,0 +1,15 @@
+{
+  "name": "rxdb-sample-project",
+  "version": "1.0.0",
+  "description": "Sample Node.js project using RxDB for in-memory and persistent storage",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "rxdb": "^15.0.0",
+    "rxjs": "^7.8.0",
+    "lodash-es": "^4.17.21"
+  },
+  "type": "module"
+}
