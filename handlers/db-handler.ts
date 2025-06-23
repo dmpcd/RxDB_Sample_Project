@@ -1,24 +1,72 @@
 import { AbstractRefdataHandler } from './abstract-refdata-handler.js';
 
-export class DBHandler extends AbstractRefdataHandler {
+interface EntityConfiguration {
+  entity_name: string;
+  dynamic_update: boolean;
+  loki_search_keys: string[];
+}
 
-  constructor(configuration, dburl) {
-    super();
+interface Configuration {
+  fileName: string;
+  entities?: EntityConfiguration[];
+}
+
+interface UserData {
+  idx: string;
+  username: string;
+  email: string;
+  role: string;
+  active: boolean;
+  created_at: string;
+}
+
+interface ProductData {
+  idx: string;
+  name: string;
+  category: string;
+  price: number;
+  in_stock: boolean;
+  created_at: string;
+}
+
+interface OrderData {
+  idx: string;
+  user_id: string;
+  product_id: string;
+  quantity: number;
+  status: string;
+  created_at: string;
+}
+
+interface CategoryData {
+  idx: string;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+type SampleData = UserData | ProductData | OrderData | CategoryData;
+
+export class DBHandler extends AbstractRefdataHandler {
+  private configuration: Configuration;
+  private dburl: string;
+
+  constructor(configuration: Configuration, dburl: string) {
+    super('p8_db_handler_db');
     this.configuration = configuration;
     this.dburl = dburl;
   }
 
-  async loadData() {
+  async loadData(): Promise<void> {
     await this.initialize();
 
-    // Simulate loading data from MongoDB
-    const sampleEntities = [
+    const sampleEntities: string[] = [
       'users', 'products', 'orders', 'categories'
     ];
 
-    const promises = [];
+    const promises: Promise<void>[] = [];
     for (const entityName of sampleEntities) {
-      const entity = this.configuration.entities?.find(e => e.entity_name === entityName) || {
+      const entity: EntityConfiguration = this.configuration.entities?.find(e => e.entity_name === entityName) || {
         entity_name: entityName,
         dynamic_update: false,
         loki_search_keys: ['idx', 'name']
@@ -34,11 +82,10 @@ export class DBHandler extends AbstractRefdataHandler {
     console.log("===========================================>");
   }
 
-  async loadDataForCollection(entity, collectionName) {
+  async loadDataForCollection(entity: EntityConfiguration, collectionName: string): Promise<void> {
     try {
       const startTime = Date.now();
 
-      // Generate sample data (simulating MongoDB load)
       const sampleData = this.generateSampleData(collectionName, 100);
 
       const loadLatency = Date.now() - startTime;
@@ -51,7 +98,6 @@ export class DBHandler extends AbstractRefdataHandler {
       console.log(`------------ Loadup complete for collection: ${collectionName} ---------`);
       console.log(`Count: ${sampleData.length}, load up latency: ${loadLatency}ms, insert latency: ${insertLatency}ms`);
 
-      // Add search keys (indexes)
       const searchKeys = entity.loki_search_keys || ['idx'];
       console.log(`Adding search keys for collection ${collectionName}:`, searchKeys);
       await this.addSearchKeys(collectionName, searchKeys);
@@ -62,8 +108,8 @@ export class DBHandler extends AbstractRefdataHandler {
     }
   }
 
-  generateSampleData(collectionName, count) {
-    const data = [];
+  generateSampleData(collectionName: string, count: number): SampleData[] {
+    const data: SampleData[] = [];
     for (let i = 1; i <= count; i++) {
       if (collectionName === 'users') {
         data.push({
@@ -104,8 +150,7 @@ export class DBHandler extends AbstractRefdataHandler {
     return data;
   }
 
-  async stop() {
+  async stop(): Promise<void> {
     await this.destroy();
   }
 }
-

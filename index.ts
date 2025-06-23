@@ -1,18 +1,31 @@
 import { DBHandler } from './handlers/db-handler.js';
 import { FileHandler } from './handlers/file-handler.js';
 
-async function testDBHandler() {
+interface EntityConfiguration {
+  entity_name: string;
+  dynamic_update: boolean;
+  loki_search_keys: string[];
+}
+
+interface Configuration {
+  fileName: string;
+  entities: EntityConfiguration[];
+}
+
+async function testDBHandler(): Promise<void> {
   console.log('\n=== Testing DBHandler ===');
 
-  const configuration = {
+  const configuration: Configuration = {
     fileName: 'test_db.json',
     entities: [
       {
         entity_name: 'users',
+        dynamic_update: false,
         loki_search_keys: ['idx', 'username', 'email', 'role']
       },
       {
         entity_name: 'products',
+        dynamic_update: false,
         loki_search_keys: ['idx', 'name', 'category']
       }
     ]
@@ -21,29 +34,22 @@ async function testDBHandler() {
   const dbHandler = new DBHandler(configuration, 'mongodb://localhost:27017/test');
 
   try {
-    // Load sample data
     await dbHandler.loadData();
 
-    // Test queries
     console.log('\n--- Testing Queries ---');
 
-    // Find all active users
     const activeUsers = await dbHandler.findMany('users', { active: true });
     console.log(`Found ${activeUsers.length} active users`);
 
-    // Find a specific user
     const user = await dbHandler.findOne('users', { username: 'user1' });
     console.log('Found user:', user);
 
-    // Find user emails for admin role
     const adminEmails = await dbHandler.findValueByFilter('users', { role: 'admin' }, 'email');
     console.log('Admin emails:', adminEmails);
 
-    // Find first admin username
     const firstAdminUsername = await dbHandler.findSingleValueByFilter('users', { role: 'admin' }, 'username');
     console.log('First admin username:', firstAdminUsername);
 
-    // Get all products
     const allProducts = await dbHandler.getAll('products');
     console.log(`Total products: ${allProducts.length}`);
 
@@ -54,26 +60,25 @@ async function testDBHandler() {
   }
 }
 
-async function testFileHandler() {
+async function testFileHandler(): Promise<void> {
   console.log('\n=== Testing FileHandler ===');
 
-  const configuration = {
-    fileName: 'file_db.json',
+  const configuration: Configuration = {
+    fileName: 'sample-data.json',
     entities: [
       {
         entity_name: 'users',
+        dynamic_update: false,
         loki_search_keys: ['idx', 'username']
       }
     ]
   };
 
-  const fileHandler = new FileHandler(configuration, null, null);
+  const fileHandler = new FileHandler(configuration, './sample-data.json', null);
 
   try {
-    // Load data from sample content
     await fileHandler.loadData();
 
-    // Test queries
     const allUsers = await fileHandler.getAll('users');
     console.log('Users from file:', allUsers);
 
@@ -87,7 +92,7 @@ async function testFileHandler() {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   try {
     await testDBHandler();
     await testFileHandler();
@@ -98,4 +103,3 @@ async function main() {
 }
 
 main();
-

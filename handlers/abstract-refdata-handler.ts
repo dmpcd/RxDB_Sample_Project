@@ -1,41 +1,63 @@
-import { createRxDatabase, addRxPlugin } from 'rxdb/plugins/core';
-import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
+import { createRxDatabase, addRxPlugin, RxDatabase, RxCollection, RxDocument } from 'rxdb/plugins/core';
+import { disableWarnings, RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { getRxStorageMemory } from 'rxdb/plugins/storage-memory';
 import { get, map } from 'lodash-es';
 import { userSchema, entitySchema } from '../schemas/entity-schema.js';
 
-// Add dev mode plugin for better development experience
 addRxPlugin(RxDBDevModePlugin);
 
-export class AbstractRefdataHandler {
+interface DocumentData {
+  [key: string]: any;
+}
 
-  constructor() {
+interface FilterQuery {
+  [key: string]: any;
+}
+
+interface SchemaDefinition {
+  title: string;
+  version: number;
+  description: string;
+  type: string;
+  primaryKey: string;
+  properties: {
+    [key: string]: any;
+  };
+  required: string[];
+  additionalProperties?: false;
+  indexes?: string[];
+}
+
+export class AbstractRefdataHandler {
+  private db: RxDatabase | null;
+  private entitySearchKeys: Map<string, string[]>;
+  private dbName: string;
+
+  constructor(dbName: string = 'p8_in_memory_db') {
     this.db = null;
-    this.entitySearchKeys = new Map();
+    this.entitySearchKeys = new Map<string, string[]>();
+    this.dbName = dbName;
   }
 
-  async initialize() {
-    // Create the database with in-memory storage
+  async initialize(): Promise<void> {
     this.db = await createRxDatabase({
-      name: 'p8_in_memory_db',
+      name: this.dbName,
       storage: getRxStorageMemory()
     });
   }
 
-  async addSearchKeys(collectionName, keys) {
-    // Store search keys for future reference
+  async addSearchKeys(collectionName: string, keys: string[]): Promise<void> {
     this.entitySearchKeys.set(collectionName, keys);
-    // Do not recreate or modify the collection here!
     console.log(`Added search keys for ${collectionName}:`, keys);
   }
 
-  async insertData(collectionName, data) {
+  async insertData(collectionName: string, data: DocumentData): Promise<void> {
     const collection = await this.getOrCreateCollection(collectionName);
     await collection.insert(data);
     console.log(`Data inserted into ${collectionName}:`, JSON.stringify(data));
   }
 
-  async insertDataArray(collectionName, dataArray) {
+  async insertDataArray(collectionName: string, dataArray: DocumentData[]): Promise<void> {
     if (!dataArray || dataArray.length === 0) return;
 
     const collection = await this.getOrCreateCollection(collectionName);
@@ -43,9 +65,14 @@ export class AbstractRefdataHandler {
     console.log(`Bulk inserted ${dataArray.length} documents into ${collectionName}`);
   }
 
-  async findValueByFilter(collectionName, filter, queryField) {
+  async findValueByFilter(collectionName: string, filter: FilterQuery, queryField: string): Promise<any[]> {
     console.log(`findValueByFilter: ${collectionName}, filter: ${JSON.stringify(filter)}, field: ${queryField}`);
     const startTime = Date.now();
+
+    if (!this.db) {
+      console.error('Database not initialized');
+      return [];
+    }
 
     const collection = this.db[collectionName];
     if (!collection) {
@@ -57,14 +84,19 @@ export class AbstractRefdataHandler {
       selector: filter
     }).exec();
 
-    const values = result.map(doc => get(doc.toJSON(), queryField));
+    const values = result.map((doc: RxDocument) => get(doc.toJSON(), queryField));
     console.log(`findValueByFilter completed in ${Date.now() - startTime}ms`);
     return values;
   }
 
-  async findSingleValueByFilter(collectionName, filter, queryField) {
+  async findSingleValueByFilter(collectionName: string, filter: FilterQuery, queryField: string): Promise<any> {
     console.log(`findSingleValueByFilter: ${collectionName}, filter: ${JSON.stringify(filter)}, field: ${queryField}`);
     const startTime = Date.now();
+
+    if (!this.db) {
+      console.error('Database not initialized');
+      return null;
+    }
 
     const collection = this.db[collectionName];
     if (!collection) {
@@ -84,9 +116,14 @@ export class AbstractRefdataHandler {
     return null;
   }
 
-  async findOne(collectionName, filter) {
+  async findOne(collectionName: string, filter: FilterQuery): Promise<DocumentData | null> {
     console.log(`findOne: ${collectionName}, filter: ${JSON.stringify(filter)}`);
     const startTime = Date.now();
+
+    if (!this.db) {
+      console.error('Database not initialized');
+      return null;
+    }
 
     const collection = this.db[collectionName];
     if (!collection) {
@@ -102,9 +139,14 @@ export class AbstractRefdataHandler {
     return result ? result.toJSON() : null;
   }
 
-  async findMany(collectionName, filter) {
+  async findMany(collectionName: string, filter: FilterQuery): Promise<DocumentData[]> {
     console.log(`findMany: ${collectionName}, filter: ${JSON.stringify(filter)}`);
     const startTime = Date.now();
+
+    if (!this.db) {
+      console.error('Database not initialized');
+      return [];
+    }
 
     const collection = this.db[collectionName];
     if (!collection) {
@@ -117,10 +159,15 @@ export class AbstractRefdataHandler {
     }).exec();
 
     console.log(`findMany completed in ${Date.now() - startTime}ms`);
-    return result.map(doc => doc.toJSON());
+    return result.map((doc: RxDocument) => doc.toJSON());
   }
 
-  async getAll(collectionName) {
+  async getAll(collectionName: string): Promise<DocumentData[]> {
+    if (!this.db) {
+      console.error('Database not initialized');
+      return [];
+    }
+
     const collection = this.db[collectionName];
     if (!collection) {
       console.log(`Collection not found: ${collectionName}`);
@@ -128,32 +175,36 @@ export class AbstractRefdataHandler {
     }
 
     const result = await collection.find().exec();
-    return result.map(doc => doc.toJSON());
+    return result.map((doc: RxDocument) => doc.toJSON());
   }
 
-  async getOrCreateCollection(collectionName) {
-    // Check if collection already exists
+  async getOrCreateCollection(collectionName: string): Promise<RxCollection> {
+    if (!this.db) {
+      throw new Error("Database not initialized. Call initialize() first.");
+    }
+
     if (this.db[collectionName]) {
       return this.db[collectionName];
     }
 
-    // Use static schemas for known collections
-    let schema;
+    let schema: SchemaDefinition;
     if (collectionName === 'users') {
-      schema = { ...userSchema };
-      // Add search keys as indexes if available
+      schema = { ...userSchema, additionalProperties: false };
       const searchKeys = this.entitySearchKeys.get(collectionName);
       if (searchKeys && searchKeys.length > 0) {
-        schema.indexes = searchKeys;
+        // Filter out primary key from indexes
+        schema.indexes = searchKeys.filter(key => key !== 'idx');
       }
+      schema.additionalProperties = false;
     } else if (collectionName === 'products') {
-      schema = { ...entitySchema };
+      schema = { ...entitySchema, additionalProperties: false };
       const searchKeys = this.entitySearchKeys.get(collectionName);
       if (searchKeys && searchKeys.length > 0) {
-        schema.indexes = searchKeys;
+        // Filter out primary key from indexes
+        schema.indexes = searchKeys.filter(key => key !== 'idx');
       }
+      schema.additionalProperties = false;
     } else {
-      // Create a generic schema for dynamic collections
       schema = {
         title: `${collectionName} schema`,
         version: 0,
@@ -167,12 +218,14 @@ export class AbstractRefdataHandler {
           }
         },
         required: ['idx'],
-        additionalProperties: true
+        additionalProperties: false
       };
       const searchKeys = this.entitySearchKeys.get(collectionName);
       if (searchKeys && searchKeys.length > 0) {
-        schema.indexes = searchKeys;
+        // Filter out primary key from indexes
+        schema.indexes = searchKeys.filter(key => key !== 'idx');
       }
+      schema.additionalProperties = false;
     }
 
     await this.db.addCollections({
@@ -184,9 +237,10 @@ export class AbstractRefdataHandler {
     return this.db[collectionName];
   }
 
-  async destroy() {
+  async destroy(): Promise<void> {
     if (this.db) {
       await this.db.destroy();
+      this.db = null;
     }
   }
 }

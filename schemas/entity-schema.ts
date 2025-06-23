@@ -1,4 +1,23 @@
-export const entitySchema = {
+interface SchemaProperty {
+  type: string;
+  maxLength?: number;
+  format?: string;
+}
+
+interface Schema {
+  title: string;
+  version: number;
+  description: string;
+  type: string;
+  primaryKey: string;
+  properties: {
+    [key: string]: SchemaProperty;
+  };
+  required: string[];
+  indexes: string[];
+}
+
+export const entitySchema: Schema = {
   title: 'entity schema',
   version: 0,
   description: 'describes a generic entity',
@@ -12,6 +31,16 @@ export const entitySchema = {
     name: {
       type: 'string',
       maxLength: 100
+    },
+    category: {
+      type: 'string',
+      maxLength: 100
+    },
+    price: {
+      type: 'number'
+    },
+    in_stock: {
+      type: 'boolean'
     },
     entity_type: {
       type: 'string',
@@ -29,11 +58,11 @@ export const entitySchema = {
       type: 'object'
     }
   },
-  required: ['idx', 'name', 'entity_type'],
-  indexes: ['name', 'entity_type', 'status']
+  required: ['idx', 'name'],
+  indexes: ['name', 'category', 'entity_type', 'status']
 };
 
-export const userSchema = {
+export const userSchema: Schema = {
   title: 'user schema',
   version: 0,
   description: 'describes a user',
@@ -64,6 +93,6 @@ export const userSchema = {
       format: 'date-time'
     }
   },
-  required: ['idx', 'username', 'email', 'active'],
+  required: ['idx', 'username', 'email', 'role', 'active'],
   indexes: ['username', 'email', 'role', 'active']
 };
